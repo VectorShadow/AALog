@@ -9,6 +9,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashMap;
 
 public class AALogger {
 
@@ -16,10 +17,13 @@ public class AALogger {
     private String logFileName = "eventlog";
 
     private LogLevel logLevel = LogLevel.TRACE;
-    private boolean useTimestamps = true;
-    private boolean echoToConsole = false;
 
-    //todo - HashMap of originIDs to service names
+    private boolean echoToConsole = false;
+    private boolean useOriginIDs = false;
+
+    private boolean useTimestamps = true;
+
+    private HashMap<Integer, String> originIDMap = new HashMap<>();
 
     private BufferedWriter out;
 
@@ -29,15 +33,20 @@ public class AALogger {
         return new AALogger();
     }
 
-    //todo - origin ID
     public void log(LogLevel logLevel, String message) {
+        if (useOriginIDs) {
+            throw new IllegalArgumentException("Origin IDs are required for this logger.");
+        }
+        log(null, logLevel, message);
+    }
+
+    public void log(Integer originID, LogLevel logLevel, String message) {
         if (out == null) initialize();
         if (this.logLevel.compareTo(logLevel) < 0) return;
-        //todo - properly format the message based on originID and timeStamp preference
-        if (useTimestamps) message = "<" + getTimestampNow() + "> " + message;
-        if (echoToConsole) System.out.println(message);
+        String formattedMessage = formatMessage(originID, message);
+        if (echoToConsole) System.out.println(formattedMessage);
         try {
-            out.write(message + "\n");
+            out.write(formattedMessage + "\n");
         } catch (IOException e) {
             throw new IllegalStateException("IOException while trying to write log message: " + e.getMessage());
         }
@@ -63,6 +72,16 @@ public class AALogger {
         echoToConsole = val;
     }
 
+    public void setOriginIDMap(HashMap<Integer, String> map) {
+        useOriginIDs = true;
+        originIDMap = map;
+    }
+
+    public void mapOriginID(Integer originID, String name) {
+        useOriginIDs = true;
+        originIDMap.put(originID, name);
+    }
+
     public void initialize() {
         createDirectoryIfNotExists(logDir);
         out = openWriter(getLogFilePath(logDir, logFileName, useTimestamps));
@@ -75,6 +94,21 @@ public class AALogger {
         } catch (IOException e) {
             throw new IllegalStateException("IOException while trying to close fileWriter: " + e.getMessage());
         }
+    }
+
+    private String formatMessage(Integer originID, String rawMessage) {
+        StringBuilder sb = new StringBuilder();
+        if (useTimestamps) {
+            sb.append("[");
+            sb.append(getTimestampNow());
+            sb.append("] ");
+        }
+        if (useOriginIDs) {
+            String mappedName = originID == null ? "NULL origin" : originIDMap.get(originID);
+            sb.append("<").append(mappedName == null ? "unmapped origin" : mappedName).append("> ");
+        }
+        sb.append(rawMessage);
+        return sb.toString();
     }
 
     private static Path getLogFilePath(String directory, String filename, boolean useTimestamps) {
