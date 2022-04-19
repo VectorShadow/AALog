@@ -1,4 +1,4 @@
-package org.vsdl.aa.logger;
+package org.vsdl.astral.util;
 
 import java.io.BufferedWriter;
 import java.io.IOException;

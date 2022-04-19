@@ -1,4 +1,4 @@
-package org.vsdl.aa.logger;
+package org.vsdl.astral.util;
 
 public enum LogLevel {
     CORE_FAIL,
